@@ -1,0 +1,68 @@
+{
+
+  "social": {
+    "interval": { "min": 1, "max": 20 },
+    "data": {
+      "author": { "enum": [
+        "bigdaddy23",
+        "pearl_jam_fan",
+        "iLikeEggs",
+        "MsDemeanor",
+        "sk8rchick",
+        "ABigFoot"
+      ]},
+      "action": { "enum": [
+        { "type": "post", "msg": "Wrecking this noob!" },
+        { "type": "post", "msg": "Setting up for failure" },
+        { "type": "post", "msg": "Testing my new build y'all. LEAVE ME FOOD." },
+        { "type": "post", "msg": "heyyyy, im just posting a status update hehe. #dumptrump" },
+        { "type": "update", "msg": "reached level 10" },
+        { "type": "update", "msg": "reached level 20" },
+        { "type": "update", "msg": "won an alliance war" },
+        { "type": "update", "msg": "cleared Mushroom Kingdom!" },
+        { "type": "update", "msg": "has died" },
+        { "type": "update", "msg": "maxed her profession" }
+      ]}
+    }
+  },
+
+  "quests": {
+    "interval": { "min": 10, "max": 30 },
+    "data": {
+      "giver": { "enum": ["Bob", "Dylan", "CookieMonster", "Betsy", "Giggles"] },
+      "story": { "enum": [
+        {
+          "title": "Help me!",
+          "body": "Egor stole my pants. Please get them back!"
+        },
+        {
+          "title": "Target: Jellygirl",
+          "body": "Jellygirl is annoying. Let's kill her ..."
+        },
+        {
+          "title": "For the good of the garden",
+          "body": "Eels are eating my cabbage. Follow them before it's too late."
+        },
+        {
+          "title": "A lost cause",
+          "body": "My friend keeps making bad jokes. Could you teach him to be funny?"
+        },
+        {
+          "title": "Greedy Minions",
+          "body": "I'm poor. Could you convince Boss Lady to give me a raise?"
+        },
+        {
+          "title": "TO ARMS!!!",
+          "body": "Let's play pictionary. If you win, I'll give you something nice."
+        },
+        {
+          "title": "Hungry games",
+          "body": "Bring me 5 raccoons and 10 cabbage patch kids"
+        }
+      ]},
+      "difficulty": { "min": 1, "max": 5, "prec": 0 },
+      "reward": { "min": 100, "max": 1000, "prec": -1 }
+    }
+  }
+
+}
