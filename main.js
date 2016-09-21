@@ -53,6 +53,55 @@ app.get('/feeds', function (req, res) {
 //------------------------------------------------------------------------
 // Socket server
 
+var removeServer = function(server) {
+    var index = servers.indexOf(server);
+    if (index === -1) {
+        console.error('removeServer server not found');
+    } else {
+        servers.splice(index, 1);
+        var clientList = server.customClientList || clients;
+        _.each(clientList, function (client) {
+            if (client === this || !client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
+                return;
+            }
+            removeClient(client);
+        });
+    }
+}
+
+var removeClient = function(client,removeFromServerList,noerror) {
+    var index = clients.indexOf(client);
+    if (index === -1 && !noerror) {
+        console.error('removeClient client not found in client list');
+    } else {
+        clients.splice(index, 1);
+    }
+
+    if (removeFromServerList && client.customServerInfo) {
+        client.customServerInfo.forEach(function(server){
+            index = server.customClientList.indexOf(client);
+            if (index === -1 && !noerror) {
+                console.error('removeClient client not found in customClientList');
+            } else {
+               server.customClientList.splice(index, 1);
+            }
+        });
+    }
+}
+
+var sendToClientList = function (server,message,sendFunc) {
+    if (server.customSocketInfo && server.customSocketInfo.Type === 'Server') {
+        var gameID = server.customSocketInfo.GameID;
+        var clientList = server.customClientList || clients;
+        _.each(clientList, function (client) {
+            if (!client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
+                return;
+            }
+            sendFunc(client,message);
+        });
+    }
+}
+
 var handlers = {
 	onMessage: function (message) {
 		console.log('RECV', message);
@@ -60,35 +109,79 @@ var handlers = {
 		if (message === 'ping') {
 			this.send('pong');
 			return;
-		}
+		} else {
+            var parsedJSON = JSON.parse(message);
+            if (parsedJSON) {
+                switch (parsedJSON.MessageType) {
+                    case "INFO":
+                        if (parsedJSON.Type && parsedJSON.GameID) {
+                            this.customSocketInfo = parsedJSON;
+                            switch (this.customSocketInfo.Type) {
+                                case 'Server':
+                                    if (servers.indexOf(this) === -1) {
+                                        servers.push(this);
+                                        this.customClientList = [];
+                                        var gameID = this.customSocketInfo.GameID;
+                                        _.each(clients,function (client){
+                                            if (!client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
+                                                return;
+                                            }
+                                            this.customServerInfo.push(this);
+                                        });
+                                    }
+                                    break;
+                                case 'Client':
+                                    removeClient(this,true,true);
+                                    clients.push(this);
+                                    var gameID = this.customSocketInfo.GameID;
+                                    this.customServerInfo = [];
+                                    _.each(servers,function (server){
+                                        if (!server.customSocketInfo || server.customSocketInfo.GameID != gameID) {
+                                            return;
+                                        }
+                                        server.customClientList.push(this);
+                                        this.customServerInfo.push(server);
+                                    });
+                                    break;
+                            }
+                        }
+                        break;
+                    case "FETCH":
+                        sendToClientList(this,message,function(client,message){
+                            client.send(message);
+                        });
 
-		// Broadcast all received messages to everyone (except sender)
-		_.each(clients, function (client) {
-			if (client === this) {
-				return;
-			}
-			client.send(message);
-		});
+                        break;
+                    case "COMBAT":
+                        sendToClientList(this,message,function(client,message){
+                            if (client.customSocketInfo.ClientID == parsedJSON.client1ID ||
+                                client.customSocketInfo.ClientID == parsedJSON.client2ID) {
+                                client.send(message);
+                            }
+                        });
+                        break;
+                }
+            }
+        }
 	},
 
 	onClose: function() {
-		var index = clients.indexOf(this);
-		if (index === -1) {
-			console.error('onClose client not found');
-		} else {
-			clients.splice(index, 1);
-		}
+        if (this.customSocketInfo && this.customSocketInfo.Type === 'Server') {
+            removeServer(this);
+        } else {
+            removeClient(this,true);
+        }
 		console.log('disconnect');
-	},
+	}
 };
 
+var servers = [];
 var clients = [];
 var feed;
 
 wss.on('connection', function (ws) {
 	ws.on('message', handlers.onMessage.bind(ws));
 	ws.on('close', handlers.onClose.bind(ws));
-	clients.push(ws);
 	console.log('connected');
 });
 
@@ -98,142 +191,5 @@ server.on('request', app);
 // Initialize server
 
 server.listen(port, function() {
-	feed = new Feeder(clients);
-	feed.setupDefaultSources();
 	console.log('Listening on', server.address().port);
 });
-
-//------------------------------------------------------------------------
-// Classes
-
-/**
- * @class Feeder
- * 
- * Used to generate fake events to stream to the 'wall'
- */
-var Feeder = function(clients) {
-	this.sources = {};
-	this.clients = clients;
-};
-
-Feeder.prototype.addSources = function (sources) {
-	var self = this;
-	_.each(sources, function (source, key) {
-		self.addSource(key, source);
-	});
-};
-
-Feeder.prototype.addSource = function (name, options) {
-	var source = _.clone(options);
-	source.name = name;
-	Feeder.validateSource(source);
-
-	if (this.sources[name]) {
-		this.removeSource(this.sources[name]);
-	}
-	this.sources[name] = source;
-	this.seedNextFeedItem(source);
-};
-
-Feeder.prototype.removeSource = function (name) {
-	var source = this.sources[name];
-	if (!source) {
-		return;
-	}
-
-	clearTimeout(source._timer);
-	delete this.sources[name];
-};
-
-Feeder.prototype.seedNextFeedItem = function (source) {
-	var self = this;
-	source._timer = setTimeout(function() {
-		self.generateFeedItem(source);
-	}, this.getFeedItemDelay(source));
-};
-
-Feeder.prototype.getFeedItemDelay = function (source) {
-	var interval = source.interval;
-	if (interval.min === interval.max || !interval.max) {
-		return interval.min * 1000;
-	}
-
-	var diff = interval.max - interval.min;
-	return Math.round((interval.min + (Math.random() * diff)) * 1000);
-};
-
-Feeder.prototype.generateFeedItem = function (source) {
-	var feed_item = Feeder.createFeedItem(source);
-	_.each(this.clients, function(client) {
-		client.send(JSON.stringify(feed_item));
-	});
-	this.seedNextFeedItem(source);
-};
-
-Feeder.prototype.setupDefaultSources = function() {
-	if (this.sources.length) {
-		console.error('Sources already configured');
-		return;
-	}
-
-	var sources = require('./default_sources.json');
-	this.addSources(sources);
-};
-
-/**
- * source = {
- *   name: 'quests',
- *   interval: {
- *     min: 1,
- *     max: 5 // optional
- *   }
- *   data: {
- *     key1: { value: 8 },                // Constant
- *     key2: { min: 3, max: 6, prec: 0 }, // Random number
- *     key3: { enum: [ ... ] }            // Randomly pick one value
- *   }
- * };
- */
-Feeder.createFeedItem = function (source) {
-	var feed_item = { type: source.name };
-	var spec, val, base, index;
-	for (var key in source.data) {
-		spec = source.data[key];
-		if (spec.value) {
-			val = spec.value;
-		}
-		else if (spec.min) {
-			val = spec.min + (Math.random() * (spec.max - spec.min + 1));
-			if (spec.prec) { // Round if precision is defined
-				base = Math.pow(10, spec.prec);
-				val = Math.floor(val * base) / base;
-			}
-		}
-		else if (spec.enum) {
-			index = Math.floor(Math.random() * spec.enum.length);
-			val = spec.enum[index];
-		}
-		feed_item[key] = val;
-	}
-	return feed_item;
-};
-
-Feeder.validateSource = function (source) {
-	if (!source.name) {
-		throw 'Source name required';
-	}
-	if (!source.data) {
-		throw 'Source data is required';
-	}
-	for (var key in source.data) {
-		var entry = source.data[key];
-		if (entry.value === undefined &&
-				entry.min === undefined &&
-				entry.enum === undefined
-		) {
-			throw 'Data entry invalid: ' + key;
-		}
-	}
-};
-
-//------------------------------------------------------------------------
