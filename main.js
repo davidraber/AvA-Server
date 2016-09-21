@@ -61,7 +61,7 @@ var removeServer = function(server) {
         servers.splice(index, 1);
         var clientList = server.customClientList || clients;
         _.each(clientList, function (client) {
-            if (client === this || !client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
+            if (!client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
                 return;
             }
             removeClient(client);
@@ -104,10 +104,11 @@ var sendToClientList = function (server,message,sendFunc) {
 
 var handlers = {
 	onMessage: function (message) {
+		var self = this;
 		console.log('RECV', message);
 
 		if (message === 'ping') {
-			this.send('pong');
+			self.send('pong');
 			return;
 		} else {
             var parsedJSON = JSON.parse(message);
@@ -115,49 +116,51 @@ var handlers = {
                 switch (parsedJSON.MessageType) {
                     case "INFO":
                         if (parsedJSON.Type && parsedJSON.GameID) {
-                            this.customSocketInfo = parsedJSON;
-                            switch (this.customSocketInfo.Type) {
+							self.customSocketInfo = parsedJSON;
+                            switch (self.customSocketInfo.Type) {
                                 case 'Server':
-                                    if (servers.indexOf(this) === -1) {
-                                        servers.push(this);
-                                        this.customClientList = [];
-                                        var gameID = this.customSocketInfo.GameID;
+                                    if (servers.indexOf(self) === -1) {
+                                        servers.push(self);
+										self.customClientList = [];
+                                        var gameID = self.customSocketInfo.GameID;
                                         _.each(clients,function (client){
                                             if (!client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
                                                 return;
                                             }
-                                            this.customServerInfo.push(this);
+                                            client.customServerInfo.push(self);
+											self.customClientList.push(client);
                                         });
                                     }
                                     break;
                                 case 'Client':
-                                    removeClient(this,true,true);
-                                    clients.push(this);
-                                    var gameID = this.customSocketInfo.GameID;
-                                    this.customServerInfo = [];
+                                    removeClient(self,true,true);
+                                    clients.push(self);
+                                    var gameID = self.customSocketInfo.GameID;
+									self.customServerInfo = [];
                                     _.each(servers,function (server){
                                         if (!server.customSocketInfo || server.customSocketInfo.GameID != gameID) {
                                             return;
                                         }
-                                        server.customClientList.push(this);
-                                        this.customServerInfo.push(server);
+                                        server.customClientList.push(self);
+										self.customServerInfo.push(server);
                                     });
                                     break;
                             }
                         }
                         break;
                     case "FETCH":
-                        sendToClientList(this,message,function(client,message){
+                        sendToClientList(self,message,function(client,message){
                             client.send(message);
                         });
 
                         break;
                     case "COMBAT":
-                        sendToClientList(this,message,function(client,message){
-                            if (client.customSocketInfo.ClientID == parsedJSON.client1ID ||
-                                client.customSocketInfo.ClientID == parsedJSON.client2ID) {
-                                client.send(message);
-                            }
+                        sendToClientList(self,message,function(client,message){
+							_.each(parsedJSON.clientIDs, function(clientID) {
+								if (client.customSocketInfo.ClientID == clientID) {
+									client.send(message);
+								}
+							});
                         });
                         break;
                 }
@@ -166,10 +169,11 @@ var handlers = {
 	},
 
 	onClose: function() {
-        if (this.customSocketInfo && this.customSocketInfo.Type === 'Server') {
-            removeServer(this);
+		var self = this;
+        if (self.customSocketInfo && self.customSocketInfo.Type === 'Server') {
+            removeServer(self);
         } else {
-            removeClient(this,true);
+            removeClient(self,true);
         }
 		console.log('disconnect');
 	}
