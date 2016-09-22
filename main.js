@@ -60,11 +60,12 @@ var removeServer = function(server) {
     } else {
         servers.splice(index, 1);
         var clientList = server.customClientList || clients;
+		var gameID = server.customSocketInfo.GameID;
         _.each(clientList, function (client) {
             if (!client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
                 return;
             }
-            removeClient(client);
+			removeServerInfoFromClient(server,client);
         });
     }
 }
@@ -87,6 +88,17 @@ var removeClient = function(client,removeFromServerList,noerror) {
             }
         });
     }
+}
+
+var removeServerInfoFromClient = function(server,client) {
+	if (client.customServerInfo) {
+		var index = client.customServerInfo.indexOf(client);
+		if (index === -1) {
+			console.error('removeServerInfoFromClient server not found in customServerInfo');
+		} else {
+			client.customServerInfo.splice(index, 1);
+		}
+	}
 }
 
 var sendToClientList = function (server,message,sendFunc) {
@@ -117,12 +129,12 @@ var handlers = {
                     case "INFO":
                         if (parsedJSON.Type && parsedJSON.GameID) {
 							self.customSocketInfo = parsedJSON;
+							var gameID = self.customSocketInfo.GameID;
                             switch (self.customSocketInfo.Type) {
                                 case 'Server':
                                     if (servers.indexOf(self) === -1) {
                                         servers.push(self);
 										self.customClientList = [];
-                                        var gameID = self.customSocketInfo.GameID;
                                         _.each(clients,function (client){
                                             if (!client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
                                                 return;
@@ -135,7 +147,6 @@ var handlers = {
                                 case 'Client':
                                     removeClient(self,true,true);
                                     clients.push(self);
-                                    var gameID = self.customSocketInfo.GameID;
 									self.customServerInfo = [];
                                     _.each(servers,function (server){
                                         if (!server.customSocketInfo || server.customSocketInfo.GameID != gameID) {
