@@ -65,6 +65,7 @@ var removeServer = function(server) {
             if (!client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
                 return;
             }
+            client.send({MessageType:"SHUTDOWN"});
 			removeServerInfoFromClient(server,client);
         });
     }
@@ -84,7 +85,8 @@ var removeClient = function(client,removeFromServerList,noerror) {
             if (index === -1 && !noerror) {
                 console.error('removeClient client not found in customClientList');
             } else {
-               server.customClientList.splice(index, 1);
+                server.send({MessageType:"SHUTDOWN",clientID:client.customSocketInfo.ClientID});
+                server.customClientList.splice(index, 1);
             }
         });
     }
@@ -92,7 +94,7 @@ var removeClient = function(client,removeFromServerList,noerror) {
 
 var removeServerInfoFromClient = function(server,client) {
 	if (client.customServerInfo) {
-		var index = client.customServerInfo.indexOf(client);
+		var index = client.customServerInfo.indexOf(server);
 		if (index === -1) {
 			console.error('removeServerInfoFromClient server not found in customServerInfo');
 		} else {
@@ -110,6 +112,20 @@ var sendToClientList = function (server,message,sendFunc) {
                 return;
             }
             sendFunc(client,message);
+        });
+    }
+}
+
+var sendToServerList = function (client,message,sendFunc) {
+    if (client.customSocketInfo && client.customSocketInfo.Type === 'Client') {
+        var serverList = client.customServerInfo || servers;
+        _.each(serverList, function (server) {
+            index = server.customClientList.indexOf(client);
+            if (index === -1) {
+                console.error('sendToServerList client not found in customClientList');
+            } else {
+                sendFunc(server,message);
+            }
         });
     }
 }
@@ -159,19 +175,26 @@ var handlers = {
                             }
                         }
                         break;
+
                     case "FETCH":
                         sendToClientList(self,message,function(client,message){
                             client.send(message);
                         });
 
                         break;
-                    case "COMBAT":
+                    case "SERVERCOMBAT":
                         sendToClientList(self,message,function(client,message){
 							_.each(parsedJSON.clientIDs, function(clientID) {
 								if (client.customSocketInfo.ClientID == clientID) {
 									client.send(message);
 								}
 							});
+                        });
+                        break;
+
+                    default:
+                        sendToServerList(self,message,function(server,message){
+                            server.send(message);
                         });
                         break;
                 }
