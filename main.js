@@ -65,7 +65,7 @@ var removeServer = function(server) {
             if (!client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
                 return;
             }
-            client.send({MessageType:"SHUTDOWN"});
+            client.send(JSON.stringify({MessageType:"SHUTDOWN"}));
 			removeServerInfoFromClient(server,client);
         });
     }
@@ -85,7 +85,7 @@ var removeClient = function(client,removeFromServerList,noerror) {
             if (index === -1 && !noerror) {
                 console.error('removeClient client not found in customClientList');
             } else {
-                server.send({MessageType:"SHUTDOWN",clientID:client.customSocketInfo.ClientID});
+                server.send(JSON.stringify({MessageType:"SHUTDOWN",clientID:client.customSocketInfo.ClientID}));
                 server.customClientList.splice(index, 1);
             }
         });
