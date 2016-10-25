@@ -182,13 +182,21 @@ var handlers = {
                         });
 
                         break;
+                    case "CLAIMUNITREPLY":
+                        sendToClientList(self,message,function(client,message){
+							if (client.customSocketInfo.ClientID == parsedJSON.clientID) {
+								client.send(message);
+							}
+                        });
+                        break;
+
                     case "SERVERCOMBAT":
                         sendToClientList(self,message,function(client,message){
-							_.each(parsedJSON.clientIDs, function(clientID) {
-								if (client.customSocketInfo.ClientID == clientID) {
-									client.send(message);
-								}
-							});
+                            _.each(parsedJSON.clientIDs, function(clientID) {
+                                if (client.customSocketInfo.ClientID == clientID) {
+                                    client.send(message);
+                                }
+                            });
                         });
                         break;
 
