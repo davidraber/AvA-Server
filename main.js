@@ -142,6 +142,15 @@ var handlers = {
             var parsedJSON = JSON.parse(message);
             if (parsedJSON) {
                 switch (parsedJSON.MessageType) {
+                    case "GETSERVERS":
+                        servers = servers || [];
+                        serverIDList = [];
+                        _.each(servers, function(server) {
+                            serverIDList.push(server.customSocketInfo.GameID);
+                        });
+                        message = {Type:"SERVERLIST",serverIDs: serverIDList};
+                        self.send(JSON.stringify(message));
+                        break;
                     case "INFO":
                         if (parsedJSON.Type && parsedJSON.GameID) {
 							self.customSocketInfo = parsedJSON;
