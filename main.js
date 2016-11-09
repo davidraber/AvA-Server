@@ -148,7 +148,7 @@ var handlers = {
                         _.each(servers, function(server) {
                             serverIDList.push(server.customSocketInfo.GameID);
                         });
-                        message = {Type:"SERVERLIST",serverIDs: serverIDList};
+                        message = {MessageType:"SERVERLIST",serverIDs: serverIDList};
                         self.send(JSON.stringify(message));
                         break;
                     case "INFO":
