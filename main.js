@@ -82,10 +82,14 @@ var removeClient = function(client,removeFromServerList,noerror) {
     if (removeFromServerList && client.customServerInfo) {
         client.customServerInfo.forEach(function(server){
             index = server.customClientList.indexOf(client);
-            if (index === -1 && !noerror) {
-                console.error('removeClient client not found in customClientList');
+            if (index === -1 ) {
+                if (!noerror) {
+                    console.error('removeClient client not found in customClientList');
+                }
             } else {
-                server.send(JSON.stringify({MessageType:"SHUTDOWN",clientID:client.customSocketInfo.ClientID}));
+                if (!noerror) {
+                    server.send(JSON.stringify({MessageType: "SHUTDOWN", clientID: client.customSocketInfo.ClientID}));
+                }
                 server.customClientList.splice(index, 1);
             }
         });
@@ -171,6 +175,11 @@ var handlers = {
                                     break;
                                 case 'Client':
                                     removeClient(self,true,true);
+                                    _.each(clients,function (client) {
+                                        if (client.customSocketInfo.ClientID === self.customSocketInfo.ClientID) {
+                                            removeClient(client,true,true);
+                                        }
+                                    });
                                     clients.push(self);
 									self.customServerInfo = [];
                                     _.each(servers,function (server){
