@@ -72,9 +72,10 @@ var removeServer = function(server) {
 }
 
 var removeClient = function(client,removeFromServerList,noerror) {
+    console.log ('unregistering client '+ client.customSocketInfo.ClientID + ":removeFromServer=" + removeFromServerList + ',noerror=' + noerror);
     var index = clients.indexOf(client);
     if (index === -1 && !noerror) {
-        console.error('removeClient client not found in client list');
+        console.error('removeClient client '+ client.customSocketInfo.ClientID + ' not found in clients list');
     } else {
         clients.splice(index, 1);
     }
@@ -84,9 +85,10 @@ var removeClient = function(client,removeFromServerList,noerror) {
             index = server.customClientList.indexOf(client);
             if (index === -1 ) {
                 if (!noerror) {
-                    console.error('removeClient client not found in customClientList');
+                    console.error('removeClient client '+ client.customSocketInfo.ClientID + ' not found in customClientList');
                 }
             } else {
+                console.log ('removing client '+ client.customSocketInfo.ClientID + ' from game ' + server.customSocketInfo.GameID);
                 if (!noerror) {
                     server.send(JSON.stringify({MessageType: "SHUTDOWN", clientID: client.customSocketInfo.ClientID}));
                 }
@@ -177,6 +179,7 @@ var handlers = {
                                     removeClient(self,true,true);
                                     _.each(clients,function (client) {
                                         if (client.customSocketInfo.ClientID === self.customSocketInfo.ClientID) {
+                                            console.log("Removing old socket connection for client " + client.customSocketInfo.ClientID);
                                             removeClient(client,true,true);
                                         }
                                     });
