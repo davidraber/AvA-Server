@@ -176,7 +176,6 @@ var handlers = {
                                     }
                                     break;
                                 case 'Client':
-                                    removeClient(self,true,true);
                                     _.each(clients,function (client) {
                                         console.log("Checking old socket " + client.customSocketInfo.ClientID + " against " + self.customSocketInfo.ClientID);
                                         if (client.customSocketInfo.ClientID === self.customSocketInfo.ClientID) {
