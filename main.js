@@ -62,7 +62,7 @@ var removeServer = function(server) {
         var clientList = server.customClientList || clients;
 		var gameID = server.customSocketInfo.GameID;
         _.each(clientList, function (client) {
-            if (!client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
+            if (!client || !client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
                 return;
             }
             client.send(JSON.stringify({MessageType:"SHUTDOWN"}));
@@ -72,7 +72,7 @@ var removeServer = function(server) {
 }
 
 var removeClient = function(client,removeFromServerList,noerror) {
-    var clientID = (client.customSocketInfo && client.customSocketInfo.ClientID) || "<INVALID-CLIENT>";
+    var clientID = (client && client.customSocketInfo && client.customSocketInfo.ClientID) || "<INVALID-CLIENT>";
     console.log ('unregistering client '+ clientID + ":removeFromServer=" + removeFromServerList + ',noerror=' + noerror);
     var index = clients.indexOf(client);
     if (index === -1 && !noerror) {
@@ -116,7 +116,7 @@ var sendToClientList = function (server,message,sendFunc) {
         var gameID = server.customSocketInfo.GameID;
         var clientList = server.customClientList || clients;
         _.each(clientList, function (client) {
-            if (!client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
+            if (!client || !client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
                 return;
             }
             sendFunc(client,message);
@@ -154,6 +154,9 @@ var handlers = {
                         servers = servers || [];
                         serverIDList = [];
                         _.each(servers, function(server) {
+                            if (!server) {
+                                return;
+                            }
                             serverIDList.push(server.customSocketInfo.GameID);
                         });
                         message = {MessageType:"SERVERLIST",serverIDs: serverIDList};
@@ -169,7 +172,7 @@ var handlers = {
                                         servers.push(self);
 										self.customClientList = [];
                                         _.each(clients,function (client){
-                                            if (!client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
+                                            if (!client || !client.customSocketInfo || client.customSocketInfo.GameID != gameID) {
                                                 return;
                                             }
                                             client.customServerInfo.push(self);
@@ -179,7 +182,7 @@ var handlers = {
                                     break;
                                 case 'Client':
                                     _.each(clients,function (client) {
-                                        if (client.customSocketInfo && self.customSocketInfo &&
+                                        if (client && client.customSocketInfo &&
                                             client.customSocketInfo.ClientID === self.customSocketInfo.ClientID) {
                                             console.log("removing old socket connection for client " + client.customSocketInfo.ClientID);
                                             removeClient(client,true,true);
@@ -188,7 +191,7 @@ var handlers = {
                                     clients.push(self);
 									self.customServerInfo = [];
                                     _.each(servers,function (server){
-                                        if (!server.customSocketInfo || server.customSocketInfo.GameID != gameID) {
+                                        if (!server || !server.customSocketInfo || server.customSocketInfo.GameID != gameID) {
                                             return;
                                         }
                                         server.customClientList.push(self);
