@@ -72,10 +72,11 @@ var removeServer = function(server) {
 }
 
 var removeClient = function(client,removeFromServerList,noerror) {
-    console.log ('unregistering client '+ client.customSocketInfo.ClientID + ":removeFromServer=" + removeFromServerList + ',noerror=' + noerror);
+    var clientID = (client.customSocketInfo && client.customSocketInfo.ClientID) || "<INVALID-CLIENT>";
+    console.log ('unregistering client '+ clientID + ":removeFromServer=" + removeFromServerList + ',noerror=' + noerror);
     var index = clients.indexOf(client);
     if (index === -1 && !noerror) {
-        console.error('removeClient client '+ client.customSocketInfo.ClientID + ' not found in clients list');
+        console.error('removeClient client '+ clientID + ' not found in clients list');
     } else {
         clients.splice(index, 1);
     }
@@ -85,12 +86,13 @@ var removeClient = function(client,removeFromServerList,noerror) {
             index = server.customClientList.indexOf(client);
             if (index === -1 ) {
                 if (!noerror) {
-                    console.error('removeClient client '+ client.customSocketInfo.ClientID + ' not found in customClientList');
+                    console.error('removeClient client '+ clientID + ' not found in customClientList');
                 }
             } else {
-                console.log ('removing client '+ client.customSocketInfo.ClientID + ' from game ' + server.customSocketInfo.GameID);
+                var gameID = (server.customSocketInfo && server.customSocketInfo.GameID) || "<INVALID-GAME>";
+                console.log ('removing client '+ clientID + ' from game ' + gameID);
                 if (!noerror) {
-                    server.send(JSON.stringify({MessageType: "SHUTDOWN", clientID: client.customSocketInfo.ClientID}));
+                    server.send(JSON.stringify({MessageType: "SHUTDOWN", clientID: clientID}));
                 }
                 server.customClientList.splice(index, 1);
             }
@@ -177,7 +179,8 @@ var handlers = {
                                     break;
                                 case 'Client':
                                     _.each(clients,function (client) {
-                                        if (client.customSocketInfo.ClientID === self.customSocketInfo.ClientID) {
+                                        if (client.customSocketInfo && self.customSocketInfo &&
+                                            client.customSocketInfo.ClientID === self.customSocketInfo.ClientID) {
                                             console.log("removing old socket connection for client " + client.customSocketInfo.ClientID);
                                             removeClient(client,true,true);
                                         }
